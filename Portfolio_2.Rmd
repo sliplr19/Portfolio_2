@@ -1,0 +1,37 @@
+---
+title: "Schizophrenia Spectrum Disorder Networks"
+author: "Lindley Slipetz"
+date: "2/16/2021"
+output: html_document
+---
+
+The purpose of this project is to compare the positive and negative symptom networks of schizophrenia spectrum disorders, particularly schizophrenia and schizoaffective disorder. We will be using three datasets from [SchizConnect](http://schizconnect.org/). We'll start by loading packages and data.
+
+```{r packages, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(psych)
+library(psy)
+library(polycor)
+library(nFactors)
+library(nFactors)
+library(psych)
+library(qgraph)
+library(EGAnet)
+library(reshape2)
+```
+
+```{r data_load, message = FALSE, warning = FALSE}
+fBIRN <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\fBIRN.csv", header = TRUE)
+NMorph <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\NMorph.csv", header = TRUE)
+NUSDAST <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\NUSDAST.csv", header = TRUE)
+```
+
+This data is super messy: it's in long form and the variable names don't match. We have a lot of work to do! Let's get started by putting the data into wide form.
+
+```{r data_wide, message = FALSE}
+fBIRN_wide <- dcast(fBIRN, subjectid ~ question_id, value.var="question_value")
+NMorph_wide <- dcast(NMorph, subjectid ~ question_id, value.var="question_value")
+NUSDAST_wide <- dcast(NUSDAST, subjectid ~ question_id, value.var="question_value")
+```
+
+Wow! That's a lot of columns! Luckily, we won't be working with all of them. Let's rename the columns we want to work with before cutting columns. We're looking for the Scale for the Assessment of Negative Symptoms (SANS) and Scale for the Assessment of Positive Symptoms (SAPS) data. 
