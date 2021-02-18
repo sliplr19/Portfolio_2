@@ -5,7 +5,14 @@ date: "2/16/2021"
 output: html_document
 ---
 
-The purpose of this project is to compare the positive and negative symptom networks of schizophrenia spectrum disorders, particularly schizophrenia and schizoaffective disorder. We will be using three datasets from [SchizConnect](http://schizconnect.org/). We'll start by loading packages and data.
+The purpose of this project is to compare the positive and negative symptom networks of schizophrenia spectrum disorders, particularly schizophrenia and schizoaffective disorder. We will be using three datasets from [SchizConnect](http://schizconnect.org/). We'll start by loading packages and data. I want to use the new EGAnet so I get pretty graphs, so I'll start by installing that.
+
+```{r update_EGA}
+#detach(package:EGAnet, unload = TRUE)
+#install.packages("EGAnet")
+```
+
+Now I'm going to load all of these packages.
 
 ```{r packages, message = FALSE, warning = FALSE}
 library(tidyverse)
@@ -17,8 +24,9 @@ library(nFactors)
 library(psych)
 library(qgraph)
 library(EGAnet)
-library(reshape2)
 ```
+
+Here's the data!
 
 ```{r data_load, message = FALSE, warning = FALSE}
 fBIRN <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\fBIRN.csv", header = TRUE)
@@ -26,15 +34,46 @@ NMorph <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\NMorph.csv", 
 NUSDAST <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\NUSDAST.csv", header = TRUE)
 ```
 
-This data is super messy: it's in long form and the variable names don't match. We have a lot of work to do! Let's get started by putting the data into wide form.
+This data is super messy: it's in long form and the variable names don't match. We have a lot of work to do! Before we put it into wide form, we'll need to limit the data to a particular time point for NMorph and NUSDAST.
 
-```{r data_wide, message = FALSE}
-fBIRN_wide <- dcast(fBIRN, subjectid ~ question_id, value.var="question_value")
-NMorph_wide <- dcast(NMorph, subjectid ~ question_id, value.var="question_value")
-NUSDAST_wide <- dcast(NUSDAST, subjectid ~ question_id, value.var="question_value")
+```{r time}
+NMorph <- NMorph %>%
+  filter(visit == 0)
+NUSDAST <- NUSDAST %>%
+  filter(visit == 0)
 ```
 
-Wow! That's a lot of columns! Luckily, we won't be working with all of them. Let's rename the columns we want to work with before cutting columns. We're looking for the Scale for the Assessment of Negative Symptoms (SANS) and Scale for the Assessment of Positive Symptoms (SAPS) data. Let's start with fBIRN. These column renames are inspired by work Veronica did when we first used this dataset.
+We have a bunch of columns that we don't need. Let's get rid of those before going wide.
+
+```{r del_col}
+fBIRN_col <- subset(fBIRN, select = -c(source, study, site, visit, assessment,
+                                       assessment_description))
+NMorph_col <- subset(NMorph, select = -c(source, study, site, visit, assessment,
+                                       assessment_description))
+NUSDAST_col <- subset(NUSDAST, select = -c(source, study, site, visit, assessment,
+                                       assessment_description))
+```
+
+Now we can make the datasets wide! I was having some difficulties with seemingly non-unique observations, but grouping by is and adding and obs variable seemed to do the trick (source: [Tidy Data](https://jrnold.github.io/r4ds-exercise-solutions/tidy-data.html))
+
+```{r data_wide}
+fBIRN_wide <- fBIRN_col %>% 
+  group_by(subjectid) %>%
+  mutate(obs = row_number()) %>%
+  tidyr::pivot_wider(names_from = question_id, values_from = question_value)
+NMorph_wide <- NMorph_col %>% 
+  group_by(subjectid) %>%
+  mutate(obs = row_number()) %>%
+  tidyr::pivot_wider(names_from = question_id, values_from = question_value)
+NUSDAST_wide <- NUSDAST_col %>% 
+  group_by(subjectid) %>%
+  mutate(obs = row_number()) %>%
+  tidyr::pivot_wider(names_from = question_id, values_from = question_value)  
+  
+```
+
+
+Wow! That's a lot of columns! Luckily, we won't be working with all of them. Let's rename the fBIRN columns we want to work with before cutting columns. We're looking for the Scale for the Assessment of Negative Symptoms (SANS) and Scale for the Assessment of Positive Symptoms (SAPS) data. When I first did this project, Veronica matched the variable name to the name in the actual measure, but I've coded it. fBIRN is the only anomaly, so we'll just be renaming those SANS/SAPS columns to match the NMorph and NUSDAST datasets.
 
 ```{r fBIRN_rename}
 fBIRN_rename <- fBIRN_wide %>%
@@ -98,4 +137,13 @@ fBIRN_rename <- fBIRN_wide %>%
          saps33 = SS68,  
          saps34 = SS69)
 
+```
+
+Now we're going to make a new column for each data frame, 'SSD'. This will tell if someone has a diagnosis of schizophrenia, schizoaffective or other.
+
+```{r SSD}
+fBIRN_complete <- fBIRN_rename %>%
+  mutate(SSD = ifelse(SCID_P48 == 3 | SCID_P47 == 3, "Schizophrenia",   
+                      ifelse(SCID_P54 == 3 | SCID_P53 == 3, "Schizoaffective", 
+                             "Other")))
 ```

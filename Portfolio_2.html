@@ -369,7 +369,10 @@ summary {
 </div>
 
 
-<p>The purpose of this project is to compare the positive and negative symptom networks of schizophrenia spectrum disorders, particularly schizophrenia and schizoaffective disorder. We will be using three datasets from <a href="http://schizconnect.org/">SchizConnect</a>. We’ll start by loading packages and data.</p>
+<p>The purpose of this project is to compare the positive and negative symptom networks of schizophrenia spectrum disorders, particularly schizophrenia and schizoaffective disorder. We will be using three datasets from <a href="http://schizconnect.org/">SchizConnect</a>. We’ll start by loading packages and data. I want to use the new EGAnet so I get pretty graphs, so I’ll start by installing that.</p>
+<pre class="r"><code>#detach(package:EGAnet, unload = TRUE)
+#install.packages(&quot;EGAnet&quot;)</code></pre>
+<p>Now I’m going to load all of these packages.</p>
 <pre class="r"><code>library(tidyverse)
 library(psych)
 library(psy)
@@ -378,16 +381,118 @@ library(nFactors)
 library(nFactors)
 library(psych)
 library(qgraph)
-library(EGAnet)
-library(reshape2)</code></pre>
+library(EGAnet)</code></pre>
+<p>Here’s the data!</p>
 <pre class="r"><code>fBIRN &lt;- read.csv(&quot;G:\\My Drive\\DataScience\\Schizophrenia_data\\fBIRN.csv&quot;, header = TRUE)
 NMorph &lt;- read.csv(&quot;G:\\My Drive\\DataScience\\Schizophrenia_data\\NMorph.csv&quot;, header = TRUE)
 NUSDAST &lt;- read.csv(&quot;G:\\My Drive\\DataScience\\Schizophrenia_data\\NUSDAST.csv&quot;, header = TRUE)</code></pre>
-<p>This data is super messy: it’s in long form and the variable names don’t match. We have a lot of work to do! Let’s get started by putting the data into wide form.</p>
-<pre class="r"><code>fBIRN_wide &lt;- dcast(fBIRN, subjectid ~ question_id, value.var=&quot;question_value&quot;)
-NMorph_wide &lt;- dcast(NMorph, subjectid ~ question_id, value.var=&quot;question_value&quot;)
-NUSDAST_wide &lt;- dcast(NUSDAST, subjectid ~ question_id, value.var=&quot;question_value&quot;)</code></pre>
-<p>Wow! That’s a lot of columns! Luckily, we won’t be working with all of them. Let’s rename the columns we want to work with before cutting columns. We’re looking for the Scale for the Assessment of Negative Symptoms (SANS) and Scale for the Assessment of Positive Symptoms (SAPS) data.</p>
+<p>This data is super messy: it’s in long form and the variable names don’t match. We have a lot of work to do! Before we put it into wide form, we’ll need to limit the data to a particular time point for NMorph and NUSDAST.</p>
+<pre class="r"><code>NMorph &lt;- NMorph %&gt;%
+  filter(visit == 0)
+NUSDAST &lt;- NUSDAST %&gt;%
+  filter(visit == 0)</code></pre>
+<p>We have a bunch of columns that we don’t need. Let’s get rid of those before going wide.</p>
+<pre class="r"><code>fBIRN_col &lt;- subset(fBIRN, select = -c(source, study, site, visit, assessment,
+                                       assessment_description))
+NMorph_col &lt;- subset(NMorph, select = -c(source, study, site, visit, assessment,
+                                       assessment_description))
+NUSDAST_col &lt;- subset(NUSDAST, select = -c(source, study, site, visit, assessment,
+                                       assessment_description))</code></pre>
+<p>Now we can make the datasets wide! I was having some difficulties with seemingly non-unique observations, but grouping by is and adding and obs variable seemed to do the trick (source: <a href="https://jrnold.github.io/r4ds-exercise-solutions/tidy-data.html">Tidy Data</a>)</p>
+<pre class="r"><code>fBIRN_wide &lt;- fBIRN_col %&gt;% 
+  group_by(subjectid) %&gt;%
+  mutate(obs = row_number()) %&gt;%
+  tidyr::pivot_wider(names_from = question_id, values_from = question_value)
+NMorph_wide &lt;- NMorph_col %&gt;% 
+  group_by(subjectid) %&gt;%
+  mutate(obs = row_number()) %&gt;%
+  tidyr::pivot_wider(names_from = question_id, values_from = question_value)</code></pre>
+<pre><code>## Warning: Factor `subjectid` contains implicit NA, consider using
+## `forcats::fct_explicit_na`
+
+## Warning: Factor `subjectid` contains implicit NA, consider using
+## `forcats::fct_explicit_na`
+
+## Warning: Factor `subjectid` contains implicit NA, consider using
+## `forcats::fct_explicit_na`</code></pre>
+<pre class="r"><code>NUSDAST_wide &lt;- NUSDAST_col %&gt;% 
+  group_by(subjectid) %&gt;%
+  mutate(obs = row_number()) %&gt;%
+  tidyr::pivot_wider(names_from = question_id, values_from = question_value)  </code></pre>
+<pre><code>## Warning: Factor `subjectid` contains implicit NA, consider using
+## `forcats::fct_explicit_na`
+
+## Warning: Factor `subjectid` contains implicit NA, consider using
+## `forcats::fct_explicit_na`
+
+## Warning: Factor `subjectid` contains implicit NA, consider using
+## `forcats::fct_explicit_na`</code></pre>
+<p>Wow! That’s a lot of columns! Luckily, we won’t be working with all of them. Let’s rename the fBIRN columns we want to work with before cutting columns. We’re looking for the Scale for the Assessment of Negative Symptoms (SANS) and Scale for the Assessment of Positive Symptoms (SAPS) data. When I first did this project, Veronica matched the variable name to the name in the actual measure, but I’ve coded it. fBIRN is the only anomaly, so we’ll just be renaming those SANS/SAPS columns to match the NMorph and NUSDAST datasets.</p>
+<pre class="r"><code>fBIRN_rename &lt;- fBIRN_wide %&gt;%
+  rename(sans1 = &#39;Unchanging Facial Expression&#39;,
+         sans2 = SS12, 
+         sans3 = SS13, 
+         sans4 = SS14, 
+         sans5 = SS15, 
+         sans7 = SS16, 
+         sans8 = SS17, 
+         sans6 = SS18, 
+         sans9 = SS19, 
+         sans10 = SS20,  
+         sans11 = SS21,  
+         sans12 = SS22, 
+         sans13 = SS23,  
+         sans14 = SS24, 
+         sans15 = SS25,  
+         sans16 = SS26,  
+         sans17 = SS27,  
+         sans18 = SS28,  
+         sans19 = SS29, 
+         sans20 = SS30, 
+         sans21 = SS31,  
+         sans22 = SS32,  
+         sans23 = SS33,  
+         sans24 = SS34,  
+         sans25 = SS35,    
+         saps1 = SS36,  
+         saps2 = SS37,  
+         saps3 = SS38,  
+         saps4 = SS39, 
+         saps5 = SS40, 
+         saps6 = SS41,  
+         saps7 = SS42,  
+         saps8 = SS43,  
+         saps9 = SS44,  
+         saps10 = SS45, 
+         saps11 = SS46,  
+         saps12 = SS47,  
+         saps13 = SS48,  
+         saps14 = SS49, 
+         saps15 = SS50, 
+         saps16 = SS51,  
+         saps17 = SS52,  
+         saps18 = SS53,  
+         saps19 = SS54,  
+         saps20 = SS55, 
+         saps21 = SS56,  
+         saps22 = SS57,  
+         saps23 = SS58,  
+         saps24 = SS59, 
+         saps25 = SS60, 
+         saps26 = SS61,  
+         saps27 = SS62,  
+         saps28 = SS63,  
+         saps29 = SS64,  
+         saps30 = SS65, 
+         saps31 = SS66,  
+         saps32 = SS67,  
+         saps33 = SS68,  
+         saps34 = SS69)</code></pre>
+<p>Now we’re going to make a new column for each data frame, ‘SSD’. This will tell if someone has a diagnosis of schizophrenia, schizoaffective or other.</p>
+<pre class="r"><code>fBIRN_complete &lt;- fBIRN_rename %&gt;%
+  mutate(SSD = ifelse(SCID_P48 == 3 | SCID_P47 == 3, &quot;Schizophrenia&quot;,   
+                      ifelse(SCID_P54 == 3 | SCID_P53 == 3, &quot;Schizoaffective&quot;, 
+                             &quot;Other&quot;)))</code></pre>
 
 
 
