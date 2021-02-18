@@ -44,15 +44,13 @@ NUSDAST <- NUSDAST %>%
 ```
 
 ```{r filter}
-subset_fBIRN <- subset(fBIRN, assessment_description == "Scale for the Assessment of Negative Symptoms" | assessment_description == "Scale for the Assessment of Positive Symptoms" & (question_id == "SCID_P47" | question_id = "SCID_P48" |
-question_id == "SCID_P53" | question_id == "SCID_P54"),
-select=c(subjectid, question_id, question_value))
+subset_fBIRN <- subset(fBIRN, (assessment_description == "Scale for the Assessment of Negative Symptoms" | assessment_description == "Scale for the Assessment of Positive Symptoms") | question_id %in% c("SCID_P47", "SCID_P48", "SCID_P53", "SCID_P54"))
 ```
 
 We have a bunch of columns that we don't need. Let's get rid of those before going wide.
 
 ```{r del_col}
-fBIRN_col <- subset(fBIRN, select = -c(source, study, site, visit, assessment,
+fBIRN_col <- subset(subset_fBIRN, select = -c(source, study, site, visit, assessment,
                                        assessment_description))
 NMorph_col <- subset(NMorph, select = -c(source, study, site, visit, assessment,
                                        assessment_description))
@@ -64,9 +62,10 @@ Now we can make the datasets wide! I was having some difficulties with seemingly
 
 ```{r data_wide}
 fBIRN_wide <- fBIRN_col %>% 
-  
-  mutate(obs = row_number()) %>%
+  unique() %>%
   tidyr::pivot_wider(names_from = question_id, values_from = question_value)
+
+```
 NMorph_wide <- NMorph_col %>% 
  
   mutate(obs = row_number()) %>%
@@ -76,8 +75,6 @@ NUSDAST_wide <- NUSDAST_col %>%
   mutate(obs = row_number()) %>%
   tidyr::pivot_wider(names_from = question_id, values_from = question_value)  
   
-```
-
 
 Wow! That's a lot of columns! Luckily, we won't be working with all of them. Let's rename the fBIRN columns we want to work with before cutting columns. We're looking for the Scale for the Assessment of Negative Symptoms (SANS) and Scale for the Assessment of Positive Symptoms (SAPS) data. When I first did this project, Veronica matched the variable name to the name in the actual measure, but I've coded it. fBIRN is the only anomaly, so we'll just be renaming those SANS/SAPS columns to match the NMorph and NUSDAST datasets.
 
