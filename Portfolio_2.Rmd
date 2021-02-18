@@ -43,6 +43,12 @@ NUSDAST <- NUSDAST %>%
   filter(visit == 0)
 ```
 
+```{r filter}
+subset_fBIRN <- subset(fBIRN, assessment_description == "Scale for the Assessment of Negative Symptoms" | assessment_description == "Scale for the Assessment of Positive Symptoms" & (question_id == "SCID_P47" | question_id = "SCID_P48" |
+question_id == "SCID_P53" | question_id == "SCID_P54"),
+select=c(subjectid, question_id, question_value))
+```
+
 We have a bunch of columns that we don't need. Let's get rid of those before going wide.
 
 ```{r del_col}
@@ -58,15 +64,15 @@ Now we can make the datasets wide! I was having some difficulties with seemingly
 
 ```{r data_wide}
 fBIRN_wide <- fBIRN_col %>% 
-  group_by(subjectid) %>%
+  
   mutate(obs = row_number()) %>%
   tidyr::pivot_wider(names_from = question_id, values_from = question_value)
 NMorph_wide <- NMorph_col %>% 
-  group_by(subjectid) %>%
+ 
   mutate(obs = row_number()) %>%
   tidyr::pivot_wider(names_from = question_id, values_from = question_value)
 NUSDAST_wide <- NUSDAST_col %>% 
-  group_by(subjectid) %>%
+ 
   mutate(obs = row_number()) %>%
   tidyr::pivot_wider(names_from = question_id, values_from = question_value)  
   
@@ -143,7 +149,16 @@ Now we're going to make a new column for each data frame, 'SSD'. This will tell 
 
 ```{r SSD}
 fBIRN_complete <- fBIRN_rename %>%
+  mutate(
+    SSD = case_when(
+      SCID_P48 == 3 | SCID_P47 == 3 ~ "Schizophrenia",
+      SCID_P54 == 3 | SCID_P53 == 3 ~ "Schizoaffective",
+      TRUE                          ~ "Other"
+    )
+  )  
+```
+
+
   mutate(SSD = ifelse(SCID_P48 == 3 | SCID_P47 == 3, "Schizophrenia",   
                       ifelse(SCID_P54 == 3 | SCID_P53 == 3, "Schizoaffective", 
                              "Other")))
-```
