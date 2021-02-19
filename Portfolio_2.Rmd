@@ -16,13 +16,7 @@ Now I'm going to load all of these packages.
 
 ```{r packages, message = FALSE, warning = FALSE}
 library(tidyverse)
-library(psych)
-library(psy)
 library(polycor)
-library(nFactors)
-library(nFactors)
-library(psych)
-library(qgraph)
 library(EGAnet)
 ```
 
@@ -43,42 +37,42 @@ NUSDAST <- NUSDAST %>%
   filter(visit == 0)
 ```
 
-```{r filter}
+Next, we'll subset the data to just the data we're interested in so we don't end up with a million columns when we turn the data wide.
+
+```{r subset}
 subset_fBIRN <- subset(fBIRN, (assessment_description == "Scale for the Assessment of Negative Symptoms" | assessment_description == "Scale for the Assessment of Positive Symptoms") | question_id %in% c("SCID_P47", "SCID_P48", "SCID_P53", "SCID_P54"))
+subset_NMorph <- subset(NMorph, (assessment_description == "Scale for the Assessment of Negative Symptoms" | assessment_description == "Scale for the Assessment of Positive Symptoms") | question_id %in% c("scidp47_c", "scidp53_c"))
+subset_NUSDAST <- subset(NUSDAST, (assessment_description == "Scale for the Assessment of Negative Symptoms" | assessment_description == "Scale for the Assessment of Positive Symptoms") | question_id %in% c("scidp47", "scidp53"))
 ```
 
 We have a bunch of columns that we don't need. Let's get rid of those before going wide.
 
 ```{r del_col}
-fBIRN_col <- subset(subset_fBIRN, select = -c(source, study, site, visit, assessment,
+fBIRN_col <- subset(subset_fBIRN, select = -c(source, site, visit, assessment,
                                        assessment_description))
-NMorph_col <- subset(NMorph, select = -c(source, study, site, visit, assessment,
+NMorph_col <- subset(subset_NMorph, select = -c(source, site, visit, assessment,
                                        assessment_description))
-NUSDAST_col <- subset(NUSDAST, select = -c(source, study, site, visit, assessment,
+NUSDAST_col <- subset(subset_NUSDAST, select = -c(source, site, visit, assessment,
                                        assessment_description))
 ```
 
-Now we can make the datasets wide! I was having some difficulties with seemingly non-unique observations, but grouping by is and adding and obs variable seemed to do the trick (source: [Tidy Data](https://jrnold.github.io/r4ds-exercise-solutions/tidy-data.html))
+Now we can make the datasets wide! 
 
-```{r data_wide}
-fBIRN_wide <- fBIRN_col %>% 
-  unique() %>%
-  tidyr::pivot_wider(names_from = question_id, values_from = question_value)
-
+```{r data_wide, warning = FALSE}
+fBIRN.wide <- reshape(fBIRN_col, timevar = "question_id", 
+             idvar = c("subjectid", "study"), direction = "wide")
+NMorph.wide <- reshape(NMorph_col, timevar = "question_id", 
+             idvar = c("subjectid", "study"), direction = "wide")
+NUSDAST.wide <- reshape(NUSDAST_col, timevar = "question_id", 
+             idvar = c("subjectid", "study"), direction = "wide")
 ```
-NMorph_wide <- NMorph_col %>% 
- 
-  mutate(obs = row_number()) %>%
-  tidyr::pivot_wider(names_from = question_id, values_from = question_value)
-NUSDAST_wide <- NUSDAST_col %>% 
- 
-  mutate(obs = row_number()) %>%
-  tidyr::pivot_wider(names_from = question_id, values_from = question_value)  
-  
 
-Wow! That's a lot of columns! Luckily, we won't be working with all of them. Let's rename the fBIRN columns we want to work with before cutting columns. We're looking for the Scale for the Assessment of Negative Symptoms (SANS) and Scale for the Assessment of Positive Symptoms (SAPS) data. When I first did this project, Veronica matched the variable name to the name in the actual measure, but I've coded it. fBIRN is the only anomaly, so we'll just be renaming those SANS/SAPS columns to match the NMorph and NUSDAST datasets.
+
+
+Let's rename the columns we want to work with before cutting columns again. For fBIRN, we're looking for the Scale for the Assessment of Negative Symptoms (SANS) and Scale for the Assessment of Positive Symptoms (SAPS) data. When I first did this project, Veronica matched the variable name to the name in the actual measure, but I've coded it. fBIRN is the only anomaly, so we'll just be renaming those SANS/SAPS columns to match the NMorph and NUSDAST datasets. The NMorph and NUSDAST just have weird columns names after the "widening", so we'll be deleting the "question_value." suffix from those datasets.
 
 ```{r fBIRN_rename}
+names(fBIRN.wide) <- gsub(pattern = "question_value.", replacement = "", x = names(fBIRN.wide))
 fBIRN_rename <- fBIRN_wide %>%
   rename(sans1 = 'Unchanging Facial Expression',
          sans2 = SS12, 
@@ -139,7 +133,8 @@ fBIRN_rename <- fBIRN_wide %>%
          saps32 = SS67,  
          saps33 = SS68,  
          saps34 = SS69)
-
+names(NMorph.wide) <- gsub(pattern = "question_value.", replacement = "", x = names(NMorph.wide))
+names(NUSDAST.wide) <- gsub(pattern = "question_value.", replacement = "", x = names(NUSDAST.wide))
 ```
 
 Now we're going to make a new column for each data frame, 'SSD'. This will tell if someone has a diagnosis of schizophrenia, schizoaffective or other.
@@ -152,10 +147,48 @@ fBIRN_complete <- fBIRN_rename %>%
       SCID_P54 == 3 | SCID_P53 == 3 ~ "Schizoaffective",
       TRUE                          ~ "Other"
     )
+  ) 
+NMorph_complete <- NMorph.wide %>%
+  mutate(
+    SSD = case_when(
+      scidp47_c == 3 ~ "Schizophrenia",
+      scidp53_c == 3 ~ "Schizoaffective",
+      TRUE                          ~ "Other"
+    )
+  )  
+NUSDAST_complete <- NUSDAST.wide %>%
+  mutate(
+    SSD = case_when(
+      scidp47 == 3 ~ "Schizophrenia",
+      scidp53 == 3 ~ "Schizoaffective",
+      TRUE                          ~ "Other"
+    )
   )  
 ```
 
+Okay, now we have all the information we need. Now we just need to delete the subjectid, study, and non-SSD diagnosis columns. Then we can join all the datasets together. The column with a space in fBIRN ("Proband Interview") was giving me problems so I deleted that separately.
 
-  mutate(SSD = ifelse(SCID_P48 == 3 | SCID_P47 == 3, "Schizophrenia",   
-                      ifelse(SCID_P54 == 3 | SCID_P53 == 3, "Schizoaffective", 
-                             "Other")))
+```{r del_col_2}
+fBIRN_complete$"Proband Interview" <- NULL
+fBIRN_complete <- subset(fBIRN_complete, select = -c(subjectid, study, SCID_P53, SCID_P47, SCID_P48, SCID_P54, Family, Friends, Medication, Other, Staff, Status, SS3, SS4, Reliability))
+NMorph_complete <- subset(NMorph_complete, select = -c(study, subjectid, scidp47_c, scidp53_c))     
+NUSDAST_complete <- subset(NUSDAST_complete, select = -c(study, subjectid, scidp47, scidp53))                         
+```
+
+Okay, now what we've been waiting for: we're going to make one giant dataset (okay, maybe that's not what we've been waiting for, but it's an exciting step).
+
+```{r bind}
+data_complete <- rbind(fBIRN_complete, NMorph_complete, NUSDAST_complete)
+```
+
+So you probably think our data is ready now, but there's just one last thing we need to do. The SANS and SAPS use summary scores in the measure. We just want the item level data, not the global scores. Let's delete the global scores.
+
+```{r global}
+data_complete <- subset(data_complete, select = -c(sans8, sans13, sans17, sans22, sans25, saps7, saps20, saps25, saps34))
+```
+Finally! We have our data tidy. Now we can start analyzing it. When I used this data for my first year project, I used only the sans data. I found that there were two factors for both schizophrenia and schizoaffective: psychomotor poverty and anhedonia. Now we're going to do EGA to see the factors of both SANS and SAPS. We'll start with polychoric correlations because the data is ordinal.
+
+```{r all_corr}
+data_complete <- data.frame(matrix(unlist(data_complete), nrow=nrow(data_complete)),stringsAsFactors=FALSE)
+all_corr <- polycor::hetcor(data_complete[,c(1:50)])
+```
