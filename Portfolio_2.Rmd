@@ -58,7 +58,7 @@ NUSDAST_col <- subset(subset_NUSDAST, select = -c(source, site, visit, assessmen
 
 Now we can make the datasets wide! 
 
-```{r data_wide}
+```{r data_wide, warning = FALSE}
 fBIRN.wide <- reshape(fBIRN_col, timevar = "question_id", 
              idvar = c("subjectid", "study"), direction = "wide")
 NMorph.wide <- reshape(NMorph_col, timevar = "question_id", 
@@ -201,4 +201,13 @@ SSD_data[,1:50] <- lapply(SSD_data[,1:50], as.numeric)
 all_corr <- polycor::hetcor(SSD_data[,1:50])
 ```
 
-Yay! Now we have correlations. Let's look in more detail at the highest and lowest correlations.
+Yay! Now we have correlations. Let's look in more detail at the highest and lowest correlations. We'll start by arranging the correlations in descending order using a code found here: [Arranging correlations](https://stackoverflow.com/questions/46308308/find-the-pair-of-most-correlated-variables)
+
+```{r hl_corr}
+all_corr$correlations %>%
+  as.data.frame() %>%
+  mutate(var1 = rownames(.)) %>%
+  gather(var2, value, -var1) %>%
+  arrange(desc(value))
+```
+sans 7 (lack of vocal inflections) and sans 3 (paucity of expressive gestures) have the highest correlation (.87) and sans21 (relationships with friends and peers) and saps15 (delusions of being controlled) have the lowest correlation (.23). Let's look at graphs to explore these correlation by diagnosis.
