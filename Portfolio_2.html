@@ -374,61 +374,102 @@ summary {
 #install.packages(&quot;EGAnet&quot;)</code></pre>
 <p>Now I’m going to load all of these packages.</p>
 <pre class="r"><code>library(tidyverse)
-library(psych)
-library(psy)
 library(polycor)
-library(nFactors)
-library(nFactors)
-library(psych)
-library(qgraph)
 library(EGAnet)</code></pre>
 <p>Here’s the data!</p>
-<pre class="r"><code>fBIRN &lt;- read.csv(&quot;G:\\My Drive\\DataScience\\Schizophrenia_data\\fBIRN.csv&quot;, header = TRUE)
-NMorph &lt;- read.csv(&quot;G:\\My Drive\\DataScience\\Schizophrenia_data\\NMorph.csv&quot;, header = TRUE)
-NUSDAST &lt;- read.csv(&quot;G:\\My Drive\\DataScience\\Schizophrenia_data\\NUSDAST.csv&quot;, header = TRUE)</code></pre>
+<pre class="r"><code>fBIRN &lt;- read.csv(&quot;G:\\My Drive\\DataScience\\Schizophrenia_data\\fBIRN.csv&quot;, header = TRUE, stringsAsFactors = FALSE)
+NMorph &lt;- read.csv(&quot;G:\\My Drive\\DataScience\\Schizophrenia_data\\NMorph.csv&quot;, header = TRUE, stringsAsFactors = FALSE)
+NUSDAST &lt;- read.csv(&quot;G:\\My Drive\\DataScience\\Schizophrenia_data\\NUSDAST.csv&quot;, header = TRUE, stringsAsFactors = FALSE)</code></pre>
 <p>This data is super messy: it’s in long form and the variable names don’t match. We have a lot of work to do! Before we put it into wide form, we’ll need to limit the data to a particular time point for NMorph and NUSDAST.</p>
 <pre class="r"><code>NMorph &lt;- NMorph %&gt;%
   filter(visit == 0)
 NUSDAST &lt;- NUSDAST %&gt;%
   filter(visit == 0)</code></pre>
+<p>Next, we’ll subset the data to just the data we’re interested in so we don’t end up with a million columns when we turn the data wide.</p>
+<pre class="r"><code>subset_fBIRN &lt;- subset(fBIRN, (assessment_description == &quot;Scale for the Assessment of Negative Symptoms&quot; | assessment_description == &quot;Scale for the Assessment of Positive Symptoms&quot;) | question_id %in% c(&quot;SCID_P47&quot;, &quot;SCID_P48&quot;, &quot;SCID_P53&quot;, &quot;SCID_P54&quot;))
+subset_NMorph &lt;- subset(NMorph, (assessment_description == &quot;Scale for the Assessment of Negative Symptoms&quot; | assessment_description == &quot;Scale for the Assessment of Positive Symptoms&quot;) | question_id %in% c(&quot;scidp47_c&quot;, &quot;scidp53_c&quot;))
+subset_NUSDAST &lt;- subset(NUSDAST, (assessment_description == &quot;Scale for the Assessment of Negative Symptoms&quot; | assessment_description == &quot;Scale for the Assessment of Positive Symptoms&quot;) | question_id %in% c(&quot;scidp47&quot;, &quot;scidp53&quot;))</code></pre>
 <p>We have a bunch of columns that we don’t need. Let’s get rid of those before going wide.</p>
-<pre class="r"><code>fBIRN_col &lt;- subset(fBIRN, select = -c(source, study, site, visit, assessment,
+<pre class="r"><code>fBIRN_col &lt;- subset(subset_fBIRN, select = -c(source, site, visit, assessment,
                                        assessment_description))
-NMorph_col &lt;- subset(NMorph, select = -c(source, study, site, visit, assessment,
+NMorph_col &lt;- subset(subset_NMorph, select = -c(source, site, visit, assessment,
                                        assessment_description))
-NUSDAST_col &lt;- subset(NUSDAST, select = -c(source, study, site, visit, assessment,
+NUSDAST_col &lt;- subset(subset_NUSDAST, select = -c(source, site, visit, assessment,
                                        assessment_description))</code></pre>
-<p>Now we can make the datasets wide! I was having some difficulties with seemingly non-unique observations, but grouping by is and adding and obs variable seemed to do the trick (source: <a href="https://jrnold.github.io/r4ds-exercise-solutions/tidy-data.html">Tidy Data</a>)</p>
-<pre class="r"><code>fBIRN_wide &lt;- fBIRN_col %&gt;% 
-  group_by(subjectid) %&gt;%
-  mutate(obs = row_number()) %&gt;%
-  tidyr::pivot_wider(names_from = question_id, values_from = question_value)
-NMorph_wide &lt;- NMorph_col %&gt;% 
-  group_by(subjectid) %&gt;%
-  mutate(obs = row_number()) %&gt;%
-  tidyr::pivot_wider(names_from = question_id, values_from = question_value)</code></pre>
-<pre><code>## Warning: Factor `subjectid` contains implicit NA, consider using
-## `forcats::fct_explicit_na`
-
-## Warning: Factor `subjectid` contains implicit NA, consider using
-## `forcats::fct_explicit_na`
-
-## Warning: Factor `subjectid` contains implicit NA, consider using
-## `forcats::fct_explicit_na`</code></pre>
-<pre class="r"><code>NUSDAST_wide &lt;- NUSDAST_col %&gt;% 
-  group_by(subjectid) %&gt;%
-  mutate(obs = row_number()) %&gt;%
-  tidyr::pivot_wider(names_from = question_id, values_from = question_value)  </code></pre>
-<pre><code>## Warning: Factor `subjectid` contains implicit NA, consider using
-## `forcats::fct_explicit_na`
-
-## Warning: Factor `subjectid` contains implicit NA, consider using
-## `forcats::fct_explicit_na`
-
-## Warning: Factor `subjectid` contains implicit NA, consider using
-## `forcats::fct_explicit_na`</code></pre>
-<p>Wow! That’s a lot of columns! Luckily, we won’t be working with all of them. Let’s rename the fBIRN columns we want to work with before cutting columns. We’re looking for the Scale for the Assessment of Negative Symptoms (SANS) and Scale for the Assessment of Positive Symptoms (SAPS) data. When I first did this project, Veronica matched the variable name to the name in the actual measure, but I’ve coded it. fBIRN is the only anomaly, so we’ll just be renaming those SANS/SAPS columns to match the NMorph and NUSDAST datasets.</p>
-<pre class="r"><code>fBIRN_rename &lt;- fBIRN_wide %&gt;%
+<p>Now we can make the datasets wide!</p>
+<pre class="r"><code>fBIRN.wide &lt;- reshape(fBIRN_col, timevar = &quot;question_id&quot;, 
+             idvar = c(&quot;subjectid&quot;, &quot;study&quot;), direction = &quot;wide&quot;)</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=Family: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=Friends: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=Other: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=Proband Interview: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=Reliability: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS13: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS15: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS16: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS20: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS22: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS23: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS24: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS26: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS27: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS28: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS29: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS30: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS31: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS32: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS33: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS34: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS35: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=Staff: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=Status: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS3: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS4: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS46: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS55: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS61: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS62: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS64: first taken</code></pre>
+<pre><code>## Warning in reshapeWide(data, idvar = idvar, timevar = timevar, varying = varying, :
+## multiple rows match for question_id=SS69: first taken</code></pre>
+<pre class="r"><code>NMorph.wide &lt;- reshape(NMorph_col, timevar = &quot;question_id&quot;, 
+             idvar = c(&quot;subjectid&quot;, &quot;study&quot;), direction = &quot;wide&quot;)
+NUSDAST.wide &lt;- reshape(NUSDAST_col, timevar = &quot;question_id&quot;, 
+             idvar = c(&quot;subjectid&quot;, &quot;study&quot;), direction = &quot;wide&quot;)</code></pre>
+<p>Let’s rename the columns we want to work with before cutting columns again. For fBIRN, we’re looking for the Scale for the Assessment of Negative Symptoms (SANS) and Scale for the Assessment of Positive Symptoms (SAPS) data. When I first did this project, Veronica matched the variable name to the name in the actual measure, but I’ve coded it. fBIRN is the only anomaly, so we’ll just be renaming those SANS/SAPS columns to match the NMorph and NUSDAST datasets. The NMorph and NUSDAST just have weird columns names after the “widening”, so we’ll be deleting the “question_value.” suffix from those datasets.</p>
+<pre class="r"><code>names(fBIRN.wide) &lt;- gsub(pattern = &quot;question_value.&quot;, replacement = &quot;&quot;, x = names(fBIRN.wide))
+fBIRN_rename &lt;- fBIRN_wide %&gt;%
   rename(sans1 = &#39;Unchanging Facial Expression&#39;,
          sans2 = SS12, 
          sans3 = SS13, 
@@ -487,12 +528,50 @@ NMorph_wide &lt;- NMorph_col %&gt;%
          saps31 = SS66,  
          saps32 = SS67,  
          saps33 = SS68,  
-         saps34 = SS69)</code></pre>
+         saps34 = SS69)
+names(NMorph.wide) &lt;- gsub(pattern = &quot;question_value.&quot;, replacement = &quot;&quot;, x = names(NMorph.wide))
+names(NUSDAST.wide) &lt;- gsub(pattern = &quot;question_value.&quot;, replacement = &quot;&quot;, x = names(NUSDAST.wide))</code></pre>
 <p>Now we’re going to make a new column for each data frame, ‘SSD’. This will tell if someone has a diagnosis of schizophrenia, schizoaffective or other.</p>
 <pre class="r"><code>fBIRN_complete &lt;- fBIRN_rename %&gt;%
-  mutate(SSD = ifelse(SCID_P48 == 3 | SCID_P47 == 3, &quot;Schizophrenia&quot;,   
-                      ifelse(SCID_P54 == 3 | SCID_P53 == 3, &quot;Schizoaffective&quot;, 
-                             &quot;Other&quot;)))</code></pre>
+  mutate(
+    SSD = case_when(
+      SCID_P48 == 3 | SCID_P47 == 3 ~ &quot;Schizophrenia&quot;,
+      SCID_P54 == 3 | SCID_P53 == 3 ~ &quot;Schizoaffective&quot;,
+      TRUE                          ~ &quot;Other&quot;
+    )
+  ) 
+NMorph_complete &lt;- NMorph.wide %&gt;%
+  mutate(
+    SSD = case_when(
+      scidp47_c == 3 ~ &quot;Schizophrenia&quot;,
+      scidp53_c == 3 ~ &quot;Schizoaffective&quot;,
+      TRUE                          ~ &quot;Other&quot;
+    )
+  )  
+NUSDAST_complete &lt;- NUSDAST.wide %&gt;%
+  mutate(
+    SSD = case_when(
+      scidp47 == 3 ~ &quot;Schizophrenia&quot;,
+      scidp53 == 3 ~ &quot;Schizoaffective&quot;,
+      TRUE                          ~ &quot;Other&quot;
+    )
+  )  </code></pre>
+<p>Okay, now we have all the information we need. Now we just need to delete the subjectid, study, and non-SSD diagnosis columns. Then we can join all the datasets together. The column with a space in fBIRN (“Proband Interview”) was giving me problems so I deleted that separately.</p>
+<pre class="r"><code>fBIRN_complete$&quot;Proband Interview&quot; &lt;- NULL
+fBIRN_complete &lt;- subset(fBIRN_complete, select = -c(subjectid, study, SCID_P53, SCID_P47, SCID_P48, SCID_P54, Family, Friends, Medication, Other, Staff, Status, SS3, SS4, Reliability))
+NMorph_complete &lt;- subset(NMorph_complete, select = -c(study, subjectid, scidp47_c, scidp53_c))     
+NUSDAST_complete &lt;- subset(NUSDAST_complete, select = -c(study, subjectid, scidp47, scidp53))                         </code></pre>
+<p>Okay, now what we’ve been waiting for: we’re going to make one giant dataset (okay, maybe that’s not what we’ve been waiting for, but it’s an exciting step).</p>
+<pre class="r"><code>data_complete &lt;- rbind(fBIRN_complete, NMorph_complete, NUSDAST_complete)</code></pre>
+<p>So you probably think our data is ready now, but there’s just one last thing we need to do. The SANS and SAPS use summary scores in the measure. We just want the item level data, not the global scores. Let’s delete the global scores.</p>
+<pre class="r"><code>data_complete &lt;- subset(data_complete, select = -c(sans8, sans13, sans17, sans22, sans25, saps7, saps20, saps25, saps34))</code></pre>
+<p>Our final step before analysis is to limit the data to only Schizophrenia and Schizoaffective diagnoses.</p>
+<pre class="r"><code>SSD_data &lt;- data_complete %&gt;%
+  filter(SSD == &quot;Schizophrenia&quot; | SSD == &quot;Schizoaffective&quot;)</code></pre>
+<p>Finally! We have our data tidy. Now we can start analyzing it. When I used this data for my first year project, I used only the sans data. I found that there were two factors for both schizophrenia and schizoaffective: psychomotor poverty and anhedonia. Now we’re going to do EGA to see the factors of both SANS and SAPS. We’ll start with polychoric correlations because the data is ordinal.</p>
+<pre class="r"><code>SSD_data[,1:50] &lt;- lapply(SSD_data[,1:50], as.numeric)
+all_corr &lt;- polycor::hetcor(SSD_data[,1:50])</code></pre>
+<p>Yay! Now we have correlations. Let’s look in more detail at the highest and lowest correlations.</p>
 
 
 

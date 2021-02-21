@@ -23,9 +23,9 @@ library(EGAnet)
 Here's the data!
 
 ```{r data_load, message = FALSE, warning = FALSE}
-fBIRN <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\fBIRN.csv", header = TRUE)
-NMorph <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\NMorph.csv", header = TRUE)
-NUSDAST <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\NUSDAST.csv", header = TRUE)
+fBIRN <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\fBIRN.csv", header = TRUE, stringsAsFactors = FALSE)
+NMorph <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\NMorph.csv", header = TRUE, stringsAsFactors = FALSE)
+NUSDAST <- read.csv("G:\\My Drive\\DataScience\\Schizophrenia_data\\NUSDAST.csv", header = TRUE, stringsAsFactors = FALSE)
 ```
 
 This data is super messy: it's in long form and the variable names don't match. We have a lot of work to do! Before we put it into wide form, we'll need to limit the data to a particular time point for NMorph and NUSDAST.
@@ -58,7 +58,7 @@ NUSDAST_col <- subset(subset_NUSDAST, select = -c(source, site, visit, assessmen
 
 Now we can make the datasets wide! 
 
-```{r data_wide, warning = FALSE}
+```{r data_wide}
 fBIRN.wide <- reshape(fBIRN_col, timevar = "question_id", 
              idvar = c("subjectid", "study"), direction = "wide")
 NMorph.wide <- reshape(NMorph_col, timevar = "question_id", 
@@ -186,9 +186,19 @@ So you probably think our data is ready now, but there's just one last thing we 
 ```{r global}
 data_complete <- subset(data_complete, select = -c(sans8, sans13, sans17, sans22, sans25, saps7, saps20, saps25, saps34))
 ```
+
+Our final step before analysis is to limit the data to only Schizophrenia and Schizoaffective diagnoses.
+
+```{r diag}
+SSD_data <- data_complete %>%
+  filter(SSD == "Schizophrenia" | SSD == "Schizoaffective")
+```
+
 Finally! We have our data tidy. Now we can start analyzing it. When I used this data for my first year project, I used only the sans data. I found that there were two factors for both schizophrenia and schizoaffective: psychomotor poverty and anhedonia. Now we're going to do EGA to see the factors of both SANS and SAPS. We'll start with polychoric correlations because the data is ordinal.
 
 ```{r all_corr}
-data_complete <- data.frame(matrix(unlist(data_complete), nrow=nrow(data_complete)),stringsAsFactors=FALSE)
-all_corr <- polycor::hetcor(data_complete[,c(1:50)])
+SSD_data[,1:50] <- lapply(SSD_data[,1:50], as.numeric)
+all_corr <- polycor::hetcor(SSD_data[,1:50])
 ```
+
+Yay! Now we have correlations. Let's look in more detail at the highest and lowest correlations.
