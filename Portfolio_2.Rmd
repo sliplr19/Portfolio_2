@@ -210,4 +210,16 @@ all_corr$correlations %>%
   gather(var2, value, -var1) %>%
   arrange(desc(value))
 ```
-sans 7 (lack of vocal inflections) and sans 3 (paucity of expressive gestures) have the highest correlation (.87) and sans21 (relationships with friends and peers) and saps15 (delusions of being controlled) have the lowest correlation (.23). Let's look at graphs to explore these correlation by diagnosis.
+sans 7 (lack of vocal inflections) and sans 3 (paucity of expressive gestures) have the highest correlation (.87) and sans21 (relationships with friends and peers) and saps15 (delusions of being controlled) have the lowest correlation (.23). Let's look at graphs to explore these correlation by diagnosis. We'll start with the high correlation between sans 7 and sans 3.
+
+```{r high_graph}
+SSD_data %>%
+  ggplot(aes(x=sans7, y=sans3, )) +
+  geom_point(aes(shape = SSD, color = SSD, alpha = .1, size = 3)) +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, colour = 'black') +
+  labs(title="Lack of vocal inflections vs paucity of expressive gestures",
+       x="Lack of vocal inflections", y = "Paucity of expressive gestures", shape = "Diagnosis") +
+  guides(alpha = FALSE, size = FALSE)
+```
+
+We can see from the graph that the schizophrenia points are pretty spread out and have a maximum of 5 for both items. The schizoaffective data is closer to the regression line and has a maximum of 3 for both items. Let's look at the smallest correlation.
