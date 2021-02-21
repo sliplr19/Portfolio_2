@@ -214,12 +214,24 @@ sans 7 (lack of vocal inflections) and sans 3 (paucity of expressive gestures) h
 
 ```{r high_graph}
 SSD_data %>%
-  ggplot(aes(x=sans7, y=sans3, )) +
+  ggplot(aes(x=sans7, y=sans3)) +
   geom_point(aes(shape = SSD, color = SSD, alpha = .1, size = 3)) +
   geom_smooth(method=lm, se=FALSE, fullrange=TRUE, colour = 'black') +
   labs(title="Lack of vocal inflections vs paucity of expressive gestures",
-       x="Lack of vocal inflections", y = "Paucity of expressive gestures", shape = "Diagnosis") +
+       x="Lack of vocal inflections", y = "Paucity of expressive gestures", shape = "Diagnosis", color = "Diagnosis") +
   guides(alpha = FALSE, size = FALSE)
 ```
 
 We can see from the graph that the schizophrenia points are pretty spread out and have a maximum of 5 for both items. The schizoaffective data is closer to the regression line and has a maximum of 3 for both items. Let's look at the smallest correlation.
+
+```{r low_graph}
+SSD_data %>%
+  ggplot(aes(x=sans21, y=saps15)) +
+  geom_point(aes(shape = SSD, color = SSD, alpha = .1, size = 3)) +
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE, colour = 'black') +
+  labs(title="Relationships versus delusions of being controlled",
+       x="Relationships with friends and peers", y = "Delusions of being controlled", shape = "Diagnosis", color = "Diagnosis") +
+  guides(alpha = FALSE, size = FALSE)
+```
+
+Again, we see the data is quite spread out. The schizoaffective data has many points at zero for delusions of being controlled. Even so, the max for schizoaffective on both data points is 5. This also holds for schizophrenia.
