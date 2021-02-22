@@ -235,3 +235,19 @@ SSD_data %>%
 ```
 
 Again, we see the data is quite spread out. The schizoaffective data has many points at zero for delusions of being controlled. Even so, the max for schizoaffective on both data points is 5. This also holds for schizophrenia.
+
+Now we're ready to do some networks! We're going to do separate networks for schizophrenia and schizoffective, so we'll start with the schizophrenia EGA. I ran the code once to see what the structure is. I'll also add the legend at this step based on the previous run.
+
+```{r SZ_EGA}
+SZ_data <- SSD_data %>%
+  filter(SSD == "Schizophrenia") 
+SZ_EGA <- EGA(SZ_data[,1:50], uni = TRUE, model = c("glasso"), algorithm = 
+                c("walktrap"), plot.EGA = FALSE, verbose = TRUE)
+SZ_plot <- plot(SZ_EGA, plot.args = list(vsize = 5, alpha = 0.5, edge.alpha = 0.5,  legend.names = c("Factor 1", "Factor 2", "Factor 3", "Factor 4", "Factor 5", "Factor 6", "Factor 7"),  color.palette = "rainbow", label.size = 3))
+
+```
+
+
+SZ_data <- SSD_data %>%
+  filter(SSD == "Schizophrenia") 
+SZ_corr <-  polycor::hetcor(SZ_data[,1:50])
