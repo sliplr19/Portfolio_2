@@ -236,18 +236,15 @@ SSD_data %>%
 
 Again, we see the data is quite spread out. The schizoaffective data has many points at zero for delusions of being controlled. Even so, the max for schizoaffective on both data points is 5. This also holds for schizophrenia.
 
-Now we're ready to do some networks! We're going to do separate networks for schizophrenia and schizoffective, so we'll start with the schizophrenia EGA. I ran the code once to see what the structure is. I'll also add the legend at this step based on the previous run.
+Now we're ready to do some networks! We're going to do separate networks for schizophrenia and schizoffective, so we'll start with the schizophrenia EGA. I ran the code once to see what the structure is. I'll also add the legend at this step based on the previous run. The factors are based on Peralta, V. & Cuesta, M.J (1999). "Dimensional structure of psychotic symptoms: an item-level analysis of SAPS and SANS symptoms in psychotic disorders." Schizophrenia Research, 38, 13-26.
+
+*Note: I can't figure out how to change the legend font size, so I had to use annoying abbreviations. The real factors are Schneiderian delusions/auditory hallucinations, social dysfunction, religious/paranoid delusions and nonauditory hallucinations, bizarre behavior, thought disorder, poverty of affect/speech, and attention.
 
 ```{r SZ_EGA}
 SZ_data <- SSD_data %>%
   filter(SSD == "Schizophrenia") 
 SZ_EGA <- EGA(SZ_data[,1:50], uni = TRUE, model = c("glasso"), algorithm = 
                 c("walktrap"), plot.EGA = FALSE, verbose = TRUE)
-SZ_plot <- plot(SZ_EGA, plot.args = list(vsize = 5, alpha = 0.5, edge.alpha = 0.5,  legend.names = c("Factor 1", "Factor 2", "Factor 3", "Factor 4", "Factor 5", "Factor 6", "Factor 7"),  color.palette = "rainbow", label.size = 3))
+SZ_plot <- plot(SZ_EGA, plot.args = list(vsize = 5, alpha = 0.5, edge.alpha = 0.5,  legend.names = c("Schneider del/aud hall", "Soc dys", "Relig/para del/nonaud hall", "Biz behav", "Thght dis", "Pov of aff/spch", "Attn"),  color.palette = "rainbow", label.size = 3, legend.position="bottom")) 
 
 ```
-
-
-SZ_data <- SSD_data %>%
-  filter(SSD == "Schizophrenia") 
-SZ_corr <-  polycor::hetcor(SZ_data[,1:50])
