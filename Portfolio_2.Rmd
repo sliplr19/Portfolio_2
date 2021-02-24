@@ -5,7 +5,7 @@ date: "2/16/2021"
 output: html_document
 ---
 
-The purpose of this project is to compare the positive and negative symptom networks of schizophrenia spectrum disorders, particularly schizophrenia and schizoaffective disorder. We will be using three datasets from [SchizConnect](http://schizconnect.org/). We'll start by loading packages and data. I want to use the new EGAnet so I get pretty graphs, so I'll start by installing that.
+The purpose of this project is to assess the positive and negative symptom network of schizophrenia. Originally, I wanted to compare schizophrenia to schizoaffective; but, unfortunately, the schizoaffective sample was too small. I've left some comparisons, but I can't compare networks. We will be using three datasets from [SchizConnect](http://schizconnect.org/). We'll start by loading packages and data. I want to use the new EGAnet so I get pretty graphs, so I'll start by installing that.
 
 ```{r update_EGA}
 #detach(package:EGAnet, unload = TRUE)
@@ -73,7 +73,7 @@ Let's rename the columns we want to work with before cutting columns again. For 
 
 ```{r fBIRN_rename}
 names(fBIRN.wide) <- gsub(pattern = "question_value.", replacement = "", x = names(fBIRN.wide))
-fBIRN_rename <- fBIRN_wide %>%
+fBIRN_rename <- fBIRN.wide %>%
   rename(sans1 = 'Unchanging Facial Expression',
          sans2 = SS12, 
          sans3 = SS13, 
@@ -194,7 +194,7 @@ SSD_data <- data_complete %>%
   filter(SSD == "Schizophrenia" | SSD == "Schizoaffective")
 ```
 
-Finally! We have our data tidy. Now we can start analyzing it. When I used this data for my first year project, I used only the sans data. I found that there were two factors for both schizophrenia and schizoaffective: psychomotor poverty and anhedonia. Now we're going to do EGA to see the factors of both SANS and SAPS. We'll start with polychoric correlations because the data is ordinal.
+Finally! We have our data tidy. Now we can start analyzing it. When I used this data for my first year project, I used only the SANS data. I found that there were two factors for both schizophrenia and schizoaffective: psychomotor poverty and anhedonia. Now we're going to do EGA to see the factors of both SANS and SAPS. We'll start with polychoric correlations because the data is ordinal.
 
 ```{r all_corr}
 SSD_data[,1:50] <- lapply(SSD_data[,1:50], as.numeric)
@@ -212,7 +212,7 @@ all_corr$correlations %>%
 ```
 sans 7 (lack of vocal inflections) and sans 3 (paucity of expressive gestures) have the highest correlation (.87) and sans21 (relationships with friends and peers) and saps15 (delusions of being controlled) have the lowest correlation (.23). Let's look at graphs to explore these correlation by diagnosis. We'll start with the high correlation between sans 7 and sans 3.
 
-```{r high_graph}
+```{r high_graph, warning = FALSE}
 SSD_data %>%
   ggplot(aes(x=sans7, y=sans3)) +
   geom_point(aes(shape = SSD, color = SSD, alpha = .1, size = 3)) +
@@ -224,7 +224,7 @@ SSD_data %>%
 
 We can see from the graph that the schizophrenia points are pretty spread out and have a maximum of 5 for both items. The schizoaffective data is closer to the regression line and has a maximum of 3 for both items. Let's look at the smallest correlation.
 
-```{r low_graph}
+```{r low_graph, warning = FALSE}
 SSD_data %>%
   ggplot(aes(x=sans21, y=saps15)) +
   geom_point(aes(shape = SSD, color = SSD, alpha = .1, size = 3)) +
@@ -236,7 +236,7 @@ SSD_data %>%
 
 Again, we see the data is quite spread out. The schizoaffective data has many points at zero for delusions of being controlled. Even so, the max for schizoaffective on both data points is 5. This also holds for schizophrenia.
 
-Now we're ready to do some networks! We're going to do separate networks for schizophrenia and schizoffective, so we'll start with the schizophrenia EGA. I ran the code once to see what the structure is. I'll also add the legend at this step based on the previous run. The factors are based on Peralta, V. & Cuesta, M.J (1999). "Dimensional structure of psychotic symptoms: an item-level analysis of SAPS and SANS symptoms in psychotic disorders." Schizophrenia Research, 38, 13-26.
+Now we're ready for the schizophrenia network! I ran the code once to see what the structure is. I'll also add the legend at this step based on the previous run. The factors are based on Peralta, V. & Cuesta, M.J (1999). "Dimensional structure of psychotic symptoms: an item-level analysis of SAPS and SANS symptoms in psychotic disorders." Schizophrenia Research, 38, 13-26.
 
 *Note: I can't figure out how to change the legend font size, so I had to use annoying abbreviations. The real factors are Schneiderian delusions/auditory hallucinations, social dysfunction, religious/paranoid delusions and nonauditory hallucinations, bizarre behavior, thought disorder, poverty of affect/speech, and attention.
 
@@ -248,3 +248,14 @@ SZ_EGA <- EGA(SZ_data[,1:50], uni = TRUE, model = c("glasso"), algorithm =
 SZ_plot <- plot(SZ_EGA, plot.args = list(vsize = 5, alpha = 0.5, edge.alpha = 0.5,  legend.names = c("Schneider del/aud hall", "Soc dys", "Relig/para del/nonaud hall", "Biz behav", "Thght dis", "Pov of aff/spch", "Attn"),  color.palette = "rainbow", label.size = 3, legend.position="bottom")) 
 
 ```
+
+Let's take a look at the fit of this network.
+
+```{r SZ_fit}
+SZ_fit <- CFA(SZ_EGA , SZ_data[,1:50], "WLSMV", plot.CFA = FALSE)
+SZ_fit$fit.measures
+```
+
+The RMSEA of the model is 0.034, which indicates good fit; however, CFI is 0.75 which does not indicate a good fit. If I were pursuing this as a real project, I would probably make some adjustments to the model at this point (e.g., maybe dropping variables).
+
+In conclusion, I've presented a 6 cluster solution for schizophrenia using EGA. I would have liked to present a schizoaffective network, but the sample size was too small. For future directions, I would maybe eliminate some variables to improve fit and look at centrality measures.
